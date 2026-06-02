@@ -37,8 +37,8 @@ const DEFAULT_SHORTCUTS: ShortcutItem[] = [
 
 const STORAGE_KEY = "md_editor_shortcuts";
 const WORKSPACE_KEY = "md_editor_workspace_handle";
-const DRAFT_PREFIX = "md_editor_draft_";
-const AUTO_SAVE_DELAY = 2000;
+const TABS_STATE_KEY = "md_editor_tabs_state"; // Consolidated key for reliability
+const AUTO_SAVE_DELAY = 1000;
 
 function App() {
   const [tabs, setTabs] = useState<Tab[]>([]);
@@ -51,6 +51,7 @@ function App() {
   const [isPrettyPrint, setIsPrettyPrint] = useState(true);
   const [lastActivePanel, setLastActivePanel] = useState<'editor' | 'preview'>('editor');
   const [isSaving, setIsSaving] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
   
   const [shortcuts, setShortcuts] = useState<ShortcutItem[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -71,38 +72,41 @@ function App() {
 
   const activeTab = tabs.find(t => t.id === activeTabId);
 
-  // Load workspace and drafts from IndexedDB on mount
+  // 1. Initial Load: Restore all states
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        const handle = await get(WORKSPACE_KEY);
-        if (handle) {
-          setRootHandle(handle);
-          setRootName(handle.name);
+        const workspace = await get(WORKSPACE_KEY);
+        if (workspace) {
+          setRootHandle(workspace);
+          setRootName(workspace.name);
         }
         
-        // Restore tabs from storage (simplified for this demo)
-        const savedTabIds = await get("md_editor_tab_list") as string[] || [];
-        const restoredTabs: Tab[] = [];
-        for (const id of savedTabIds) {
-            const draft = await get(`${DRAFT_PREFIX}${id}`);
-            if (draft) restoredTabs.push(draft);
-        }
-        if (restoredTabs.length > 0) {
-            setTabs(restoredTabs);
-            setActiveTabId(restoredTabs[0].id);
+        const savedState = await get(TABS_STATE_KEY);
+        if (savedState && savedState.tabs) {
+            setTabs(savedState.tabs);
+            setActiveTabId(savedState.activeTabId);
         }
       } catch (err) {
         console.error("Initialization failed:", err);
+      } finally {
+        setIsInitialized(true);
       }
     };
     initializeApp();
   }, []);
 
-  // Persist tab list
+  // 2. Persistence: Save state whenever tabs or activeTabId changes
   useEffect(() => {
-    set("md_editor_tab_list", tabs.map(t => t.id));
-  }, [tabs]);
+    if (!isInitialized) return;
+    
+    // Serializing tabs: ensure we don't try to store complex objects if the API has issues
+    // Note: IndexedDB can store FileSystemHandles directly
+    set(TABS_STATE_KEY, {
+        tabs: tabs,
+        activeTabId: activeTabId
+    });
+  }, [tabs, activeTabId, isInitialized]);
 
   useEffect(() => {
     if (isDarkMode) {
@@ -140,7 +144,6 @@ function App() {
     const newTab: Tab = { id: newId, name: "Untitled.md", path: null, handle: null, content: "", isDirty: false };
     setTabs(prev => [...prev, newTab]);
     setActiveTabId(newId);
-    set(`${DRAFT_PREFIX}${newId}`, newTab);
   };
 
   const handleOpenFile = async () => {
@@ -186,7 +189,6 @@ function App() {
       const newTab: Tab = { id: newId, name: handle.name, path: handle.name, handle, content, isDirty: false };
       setTabs(prev => [...prev, newTab]);
       setActiveTabId(newId);
-      set(`${DRAFT_PREFIX}${newId}`, newTab);
     } catch (err) {
       alert(`'${handle.name}' 파일을 열 수 없습니다.\n\n사유: ${err}`);
     }
@@ -198,8 +200,6 @@ function App() {
     try {
       await fileSystemService.writeFile(tab.handle, tab.content);
       setTabs(prev => prev.map(t => t.id === tab.id ? { ...t, isDirty: false } : t));
-      // Update draft too
-      set(`${DRAFT_PREFIX}${tab.id}`, { ...tab, isDirty: false });
       return true;
     } catch (err) {
       console.error("Auto-save failed:", err);
@@ -263,8 +263,6 @@ function App() {
       }
       return newTabs;
     });
-    // Remove from IndexedDB
-    del(`${DRAFT_PREFIX}${id}`);
   };
 
   const updateContent = useCallback((newContent: string) => {
@@ -273,17 +271,14 @@ function App() {
     setTabs(prev => prev.map(t => {
       if (t.id === activeTabId) {
         const updated = { ...t, content: newContent, isDirty: true };
-        // Debounced Auto-save
-        if (autoSaveTimerRef.current) window.clearTimeout(autoSaveTimerRef.current);
         
-        autoSaveTimerRef.current = window.setTimeout(() => {
-            if (updated.handle) {
+        // Debounced Auto-save to REAL FILE
+        if (updated.handle) {
+            if (autoSaveTimerRef.current) window.clearTimeout(autoSaveTimerRef.current);
+            autoSaveTimerRef.current = window.setTimeout(() => {
                 executeSave(updated);
-            } else {
-                // For Untitled, just save draft to IndexedDB
-                set(`${DRAFT_PREFIX}${updated.id}`, updated);
-            }
-        }, AUTO_SAVE_DELAY);
+            }, AUTO_SAVE_DELAY);
+        }
         
         return updated;
       }
