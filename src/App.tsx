@@ -21,6 +21,7 @@ export interface Tab {
   handle: FileSystemFileHandle | null;
   content: string;
   isDirty: boolean;
+  isPdf?: boolean; // PDF 탭 여부 확인용
 }
 
 const DEFAULT_SHORTCUTS: ShortcutItem[] = [
@@ -37,7 +38,7 @@ const DEFAULT_SHORTCUTS: ShortcutItem[] = [
 
 const STORAGE_KEY = "md_editor_shortcuts";
 const WORKSPACE_KEY = "md_editor_workspace_handle";
-const TABS_STATE_KEY = "md_editor_tabs_state"; // Consolidated key for reliability
+const TABS_STATE_KEY = "md_editor_tabs_state"; 
 const AUTO_SAVE_DELAY = 1000;
 
 function App() {
@@ -72,7 +73,6 @@ function App() {
 
   const activeTab = tabs.find(t => t.id === activeTabId);
 
-  // 1. Initial Load: Restore all states
   useEffect(() => {
     const initializeApp = async () => {
       try {
@@ -84,7 +84,9 @@ function App() {
         
         const savedState = await get(TABS_STATE_KEY);
         if (savedState && savedState.tabs) {
-            setTabs(savedState.tabs);
+            // PDF Blob URL은 영구적이지 않으므로 복구 시 체크 필요
+            const cleanedTabs = savedState.tabs.map((t: Tab) => t.isPdf ? { ...t, content: '' } : t);
+            setTabs(cleanedTabs);
             setActiveTabId(savedState.activeTabId);
         }
       } catch (err) {
@@ -96,16 +98,14 @@ function App() {
     initializeApp();
   }, []);
 
-  // 2. Persistence: Save state whenever tabs or activeTabId changes
   useEffect(() => {
     if (!isInitialized) return;
-    
-    // Serializing tabs: ensure we don't try to store complex objects if the API has issues
-    // Note: IndexedDB can store FileSystemHandles directly
-    set(TABS_STATE_KEY, {
-        tabs: tabs,
+    // PDF의 Blob URL은 저장하지 않음 (다시 열 때 생성)
+    const stateToSave = {
+        tabs: tabs.map(t => t.isPdf ? { ...t, content: '' } : t),
         activeTabId: activeTabId
-    });
+    };
+    set(TABS_STATE_KEY, stateToSave);
   }, [tabs, activeTabId, isInitialized]);
 
   useEffect(() => {
@@ -124,6 +124,7 @@ function App() {
   };
 
   const handleFind = (query?: string) => {
+    if (activeTab?.isPdf) return; // PDF에서는 검색 기능 제한 (또는 브라우저 내장 검색 사용)
     if (viewMode === 'editor') {
       editorRef.current?.focus();
       editorRef.current?.find(query);
@@ -149,17 +150,42 @@ function App() {
   const handleOpenFile = async () => {
     try {
       const [handle] = await window.showOpenFilePicker({
-        types: [{
-          description: 'Text Files',
-          accept: { 'text/plain': ['.md', '.txt', '.json', '.js', '.ts', '.py'] }
-        }],
+        types: [
+          {
+            description: '문서 및 개발 파일',
+            accept: {
+              'text/plain': ['.txt', '.md', '.markdown', '.sql', '.sh', '.yaml', '.yml', '.env', '.log'],
+              'text/markdown': ['.md', '.markdown'],
+              'application/json': ['.json', '.jsonld'],
+              'application/javascript': ['.js', '.jsx', '.mjs', '.cjs'],
+              'text/javascript': ['.js', '.jsx'],
+              'application/typescript': ['.ts', '.tsx'],
+              'text/css': ['.css', '.scss', '.sass', '.less'],
+              'text/html': ['.html', '.htm', '.xhtml'],
+              'text/xml': ['.xml', '.rss', '.atom'],
+              'text/x-python': ['.py', '.pyw'],
+              'text/x-java-source': ['.java'],
+              'text/x-c': ['.c', '.h', '.cpp', '.hpp', '.cc', '.hh'],
+              'text/x-rust': ['.rs'],
+              'text/x-go': ['.go'],
+              'text/x-yaml': ['.yaml', '.yml'],
+              'application/pdf': ['.pdf'] // PDF 추가
+            }
+          },
+          {
+            description: '모든 파일',
+            accept: { '*/*': [] }
+          }
+        ],
         multiple: false
       });
       if (handle) {
         handleFileOpen(handle);
       }
     } catch (err) {
-      console.error("File open failed:", err);
+      if ((err as Error).name !== 'AbortError') {
+        console.error("File open failed:", err);
+      }
     }
   };
 
@@ -177,7 +203,47 @@ function App() {
   };
 
   const handleFileOpen = async (handle: FileSystemFileHandle) => {
-    const existingTab = tabs.find(t => t.handle?.name === handle.name);
+    const ext = handle.name.split('.').pop()?.toLowerCase() || '';
+    
+    // PDF 특별 처리
+    if (ext === 'pdf') {
+      try {
+        const file = await handle.getFile();
+        const url = URL.createObjectURL(file);
+        const newId = Math.random().toString(36).substring(7);
+        const newTab: Tab = { 
+          id: newId, 
+          name: handle.name, 
+          path: handle.name, 
+          handle, 
+          content: url, 
+          isDirty: false, 
+          isPdf: true 
+        };
+        setTabs(prev => [...prev, newTab]);
+        setActiveTabId(newId);
+        return;
+      } catch (err) {
+        alert("PDF 파일을 불러오는 중 오류가 발생했습니다.");
+        return;
+      }
+    }
+
+    const mediaExtensions = [
+        'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'ico', 'svg', 
+        'mp4', 'mov', 'avi', 'mkv', 'webm', 'flv',               
+        'mp3', 'wav', 'ogg', 'm4a', 'flac',                      
+        'zip', 'rar', '7z', 'tar', 'gz',                         
+        'exe', 'dll', 'so', 'dylib', 'bin',                      
+        'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'       
+    ];
+
+    if (mediaExtensions.includes(ext)) {
+      alert("문서 파일이 아닙니다.");
+      return;
+    }
+
+    const existingTab = tabs.find(t => t.handle?.name === handle.name && !t.isPdf);
     if (existingTab) {
       setActiveTabId(existingTab.id);
       return;
@@ -195,7 +261,7 @@ function App() {
   };
 
   const executeSave = async (tab: Tab) => {
-    if (!tab.handle) return false;
+    if (!tab.handle || tab.isPdf) return false; // PDF는 저장 대상 제외
     setIsSaving(true);
     try {
       await fileSystemService.writeFile(tab.handle, tab.content);
@@ -211,7 +277,7 @@ function App() {
 
   const handleSave = async (tabToSave?: Tab) => {
     const targetTab = tabToSave || activeTab;
-    if (!targetTab) return false;
+    if (!targetTab || targetTab.isPdf) return false; // PDF 저장 방지
     try {
       let handle = targetTab.handle;
       if (!handle) {
@@ -231,7 +297,7 @@ function App() {
   };
 
   const handleSaveAs = async () => {
-    if (!activeTab) return;
+    if (!activeTab || activeTab.isPdf) return;
     try {
       const handle = await window.showSaveFilePicker({
         suggestedName: activeTab.name,
@@ -250,6 +316,11 @@ function App() {
     const tabToClose = tabs.find(t => t.id === id);
     if (!tabToClose) return;
 
+    // PDF 탭 닫을 때 메모리 해제
+    if (tabToClose.isPdf && tabToClose.content) {
+        URL.revokeObjectURL(tabToClose.content);
+    }
+
     if (tabToClose.isDirty && !tabToClose.handle) {
       if (!confirm(`'${tabToClose.name}'의 변경 내용을 저장하지 않고 닫으시겠습니까?`)) {
         return;
@@ -266,13 +337,12 @@ function App() {
   };
 
   const updateContent = useCallback((newContent: string) => {
-    if (!activeTabId) return;
+    if (!activeTabId || activeTab?.isPdf) return; // PDF는 내용 업데이트 제외
 
     setTabs(prev => prev.map(t => {
       if (t.id === activeTabId) {
         const updated = { ...t, content: newContent, isDirty: true };
         
-        // Debounced Auto-save to REAL FILE
         if (updated.handle) {
             if (autoSaveTimerRef.current) window.clearTimeout(autoSaveTimerRef.current);
             autoSaveTimerRef.current = window.setTimeout(() => {
@@ -284,9 +354,8 @@ function App() {
       }
       return t;
     }));
-  }, [activeTabId]);
+  }, [activeTabId, activeTab]);
 
-  // UI Helper functions
   const startResizing = useCallback(() => { isResizing.current = true; document.body.style.cursor = 'col-resize'; }, []);
   const stopResizing = useCallback(() => { isResizing.current = false; document.body.style.cursor = 'default'; }, []);
   const resize = useCallback((e: MouseEvent) => { if (isResizing.current) setSidebarWidth(Math.max(e.clientX, 200)); }, []);
@@ -350,25 +419,35 @@ function App() {
           
           <main className="flex-1 overflow-hidden relative">
             {activeTab ? (
-              <PanelGroup orientation="horizontal" key={`${activeTab.id}-${isDarkMode}-${viewMode}`}>
-                {(viewMode === 'editor' || viewMode === 'split') && (
-                  <Panel defaultSize={viewMode === 'split' ? 50 : 100} minSize={0} className="h-full overflow-hidden">
-                    <div className="h-full w-full" onClick={() => setLastActivePanel('editor')}>
-                      <Editor key={`editor-${activeTab.id}-${isDarkMode}`} ref={editorRef} value={activeTab.content} onChange={updateContent} isDarkMode={isDarkMode} />
-                    </div>
-                  </Panel>
-                )}
-                {viewMode === 'split' && (
-                  <PanelResizeHandle className="w-[5px] bg-[var(--border-base)] hover:bg-orange-400 transition-colors cursor-col-resize shrink-0 z-10" />
-                )}
-                {(viewMode === 'preview' || viewMode === 'split') && (
-                  <Panel defaultSize={viewMode === 'split' ? 50 : 100} minSize={0} className="h-full overflow-hidden">
-                    <div className="h-full w-full" onClick={() => setLastActivePanel('preview')}>
-                      <Preview key={`preview-${activeTab.id}-${isPrettyPrint}`} ref={previewRef} content={activeTab.content} isPrettyPrint={isPrettyPrint} activeTabPath={activeTab.path} />
-                    </div>
-                  </Panel>
-                )}
-              </PanelGroup>
+              activeTab.isPdf ? (
+                <div className="h-full w-full bg-[#525659]">
+                  <iframe 
+                    src={`${activeTab.content}#view=FitH`} 
+                    className="w-full h-full border-none"
+                    title={activeTab.name}
+                  />
+                </div>
+              ) : (
+                <PanelGroup orientation="horizontal" key={`${activeTab.id}-${isDarkMode}-${viewMode}`}>
+                  {(viewMode === 'editor' || viewMode === 'split') && (
+                    <Panel defaultSize={viewMode === 'split' ? 50 : 100} minSize={0} className="h-full overflow-hidden">
+                      <div className="h-full w-full" onClick={() => setLastActivePanel('editor')}>
+                        <Editor key={`editor-${activeTab.id}-${isDarkMode}`} ref={editorRef} value={activeTab.content} onChange={updateContent} isDarkMode={isDarkMode} />
+                      </div>
+                    </Panel>
+                  )}
+                  {viewMode === 'split' && (
+                    <PanelResizeHandle className="w-[5px] bg-[var(--border-base)] hover:bg-orange-400 transition-colors cursor-col-resize shrink-0 z-10" />
+                  )}
+                  {(viewMode === 'preview' || viewMode === 'split') && (
+                    <Panel defaultSize={viewMode === 'split' ? 50 : 100} minSize={0} className="h-full overflow-hidden">
+                      <div className="h-full w-full" onClick={() => setLastActivePanel('preview')}>
+                        <Preview key={`preview-${activeTab.id}-${isPrettyPrint}`} ref={previewRef} content={activeTab.content} isPrettyPrint={isPrettyPrint} activeTabPath={activeTab.path} />
+                      </div>
+                    </Panel>
+                  )}
+                </PanelGroup>
+              )
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-[var(--text-muted)] space-y-4">
                 <div className="text-4xl opacity-20 font-bold tracking-tighter uppercase italic select-none">Zenito's Markdown</div>
@@ -387,6 +466,7 @@ function App() {
           <span className="truncate">{activeTab?.path || activeTab?.name || "Ready"}</span>
           {activeTab?.isDirty && <span className="text-orange-400 shrink-0">*Modified</span>}
           {isSaving && <span className="text-blue-400 animate-pulse ml-2">Saving...</span>}
+          {activeTab?.isPdf && <span className="text-zinc-400 ml-2">[Read Only]</span>}
         </div>
         <div className="flex items-center space-x-4 shrink-0 ml-4">
           <span>LF</span><span>UTF-8</span><span>4 spaces</span><span className="text-[var(--text-muted)]">Markdown</span>
