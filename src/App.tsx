@@ -12,7 +12,7 @@ import type { ShortcutItem } from "./components/ShortcutSettings";
 import ThemeSettings from "./components/ThemeSettings";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 import { fileSystemService } from "./services/FileSystemService";
-import { get, set, del } from "idb-keyval";
+import { get, set } from "idb-keyval";
 
 export interface Tab {
   id: string;
