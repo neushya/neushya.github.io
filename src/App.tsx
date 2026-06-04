@@ -50,7 +50,6 @@ function App() {
   const [rootName, setRootName] = useState<string>("No Folder");
   const [viewMode, setViewMode] = useState<'split' | 'editor' | 'preview'>('split');
   const [sidebarWidth, setSidebarWidth] = useState(200);
-  const [prevWidth, setPrevWidth] = useState(200);
   const [isPrettyPrint, setIsPrettyPrint] = useState(true);
   const [lastActivePanel, setLastActivePanel] = useState<'editor' | 'preview'>('editor');
   const [isSaving, setIsSaving] = useState(false);
@@ -75,7 +74,6 @@ function App() {
 
   const activeTab = tabs.find(t => t.id === activeTabId);
 
-  // Resize listener for mobile detection
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
@@ -132,20 +130,16 @@ function App() {
     setIsShortcutModalOpen(false);
   };
 
-  const handleFind = (query?: string) => {
+  const handleFind = (query?: string, forceSource?: 'editor' | 'preview') => {
     if (activeTab?.isPdf) return;
-    if (viewMode === 'editor' || isMobile) {
+    
+    const targetSource = forceSource || (isMobile ? lastActivePanel : (viewMode === 'preview' ? 'preview' : 'editor'));
+
+    if (targetSource === 'editor') {
       editorRef.current?.focus();
       editorRef.current?.find(query);
-    } else if (viewMode === 'preview') {
-      previewRef.current?.find(query);
     } else {
-      if (lastActivePanel === 'editor') {
-        editorRef.current?.focus();
-        editorRef.current?.find(query);
-      } else {
-        previewRef.current?.find(query);
-      }
+      previewRef.current?.find(query);
     }
   };
 
@@ -158,6 +152,12 @@ function App() {
   };
 
   const handleOpenFile = async () => {
+    if (activeTab?.isDirty) {
+      if (!confirm("변경 내용을 저장하지 않고 다른 파일을 여시겠습니까?")) {
+        return;
+      }
+    }
+
     try {
       const [handle] = await window.showOpenFilePicker({
         types: [
@@ -380,6 +380,8 @@ function App() {
         editorRef={editorRef}
         previewRef={previewRef}
         onFind={handleFind}
+        onOpenTheme={() => setIsThemeModalOpen(true)}
+        onPanelActive={(panel) => setLastActivePanel(panel)}
       />
     );
   }

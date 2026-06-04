@@ -15,10 +15,11 @@ interface MobileLayoutProps {
   isPrettyPrint: boolean;
   onTogglePrettyPrint: () => void;
   isDarkMode: boolean;
-  editorRef: React.RefObject<EditorHandle>;
-  previewRef: React.RefObject<PreviewHandle>;
-  onFind: (query?: string) => void;
-  onOpenTheme: () => void; // 설정 버튼 연동을 위해 추가
+  editorRef: React.RefObject<EditorHandle | null>; // null 허용으로 수정
+  previewRef: React.RefObject<PreviewHandle | null>; // null 허용으로 수정
+  onFind: (query?: string, forceSource?: 'editor' | 'preview') => void;
+  onOpenTheme: () => void;
+  onPanelActive: (panel: 'editor' | 'preview') => void;
 }
 
 const MobileLayout: React.FC<MobileLayoutProps> = ({
@@ -33,13 +34,22 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
   editorRef,
   previewRef,
   onFind,
-  onOpenTheme
+  onOpenTheme,
+  onPanelActive
 }) => {
   const [activeView, setActiveView] = useState<'editor' | 'preview'>('editor');
 
+  const handleViewChange = (view: 'editor' | 'preview') => {
+    setActiveView(view);
+    onPanelActive(view);
+  };
+
+  const handleFindClick = () => {
+    onFind(undefined, activeView);
+  };
+
   return (
     <div className="flex flex-col h-screen w-full bg-[var(--bg-app)] text-[var(--text-main)] overflow-hidden font-sans">
-      {/* Mobile Top Bar */}
       <header className="flex items-center justify-between px-4 h-12 border-b border-[var(--border-base)] bg-[var(--bg-header)] shrink-0">
         <div className="flex items-center space-x-4">
           <button onClick={onNewFile} className="p-1.5 text-[var(--text-muted)] active:text-[var(--accent)]" title="새 파일">
@@ -55,7 +65,7 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
         </span>
 
         <div className="flex items-center space-x-2">
-          <button onClick={() => onFind()} className="p-1.5 text-[var(--text-muted)]" title="검색">
+          <button onClick={handleFindClick} className="p-1.5 text-[var(--text-muted)]" title="검색">
             <Search size={20} />
           </button>
           <button onClick={onOpenTheme} className="p-1.5 text-[var(--text-muted)]" title="설정">
@@ -67,7 +77,6 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
         </div>
       </header>
 
-      {/* Main Content Area */}
       <main className="flex-1 relative overflow-hidden">
         {activeTab ? (
           activeTab.isPdf ? (
@@ -112,11 +121,10 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
         )}
       </main>
 
-      {/* Mobile Bottom Tab Bar */}
       {!activeTab?.isPdf && (
         <footer className="h-14 border-t border-[var(--border-base)] bg-[var(--bg-sidebar)] flex items-center justify-around px-2 shrink-0">
           <button 
-            onClick={() => setActiveView('editor')}
+            onClick={() => handleViewChange('editor')}
             className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 transition-colors ${activeView === 'editor' ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}`}
           >
             <Code size={22} />
@@ -136,7 +144,7 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
           <div className="w-px h-6 bg-[var(--border-base)] opacity-50" />
 
           <button 
-            onClick={() => setActiveView('preview')}
+            onClick={() => handleViewChange('preview')}
             className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 transition-colors ${activeView === 'preview' ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}`}
           >
             <Eye size={22} />
