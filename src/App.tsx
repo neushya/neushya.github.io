@@ -10,6 +10,7 @@ import type { PreviewHandle } from "./components/Preview";
 import ShortcutSettings from "./components/ShortcutSettings";
 import type { ShortcutItem } from "./components/ShortcutSettings";
 import ThemeSettings from "./components/ThemeSettings";
+import MobileLayout from "./components/MobileLayout";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 import { fileSystemService } from "./services/FileSystemService";
 import { get, set } from "idb-keyval";
@@ -21,7 +22,7 @@ export interface Tab {
   handle: FileSystemFileHandle | null;
   content: string;
   isDirty: boolean;
-  isPdf?: boolean; // PDF 탭 여부 확인용
+  isPdf?: boolean;
 }
 
 const DEFAULT_SHORTCUTS: ShortcutItem[] = [
@@ -42,6 +43,7 @@ const TABS_STATE_KEY = "md_editor_tabs_state";
 const AUTO_SAVE_DELAY = 1000;
 
 function App() {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [rootHandle, setRootHandle] = useState<FileSystemDirectoryHandle | null>(null);
@@ -73,6 +75,15 @@ function App() {
 
   const activeTab = tabs.find(t => t.id === activeTabId);
 
+  // Resize listener for mobile detection
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   useEffect(() => {
     const initializeApp = async () => {
       try {
@@ -84,7 +95,6 @@ function App() {
         
         const savedState = await get(TABS_STATE_KEY);
         if (savedState && savedState.tabs) {
-            // PDF Blob URL은 영구적이지 않으므로 복구 시 체크 필요
             const cleanedTabs = savedState.tabs.map((t: Tab) => t.isPdf ? { ...t, content: '' } : t);
             setTabs(cleanedTabs);
             setActiveTabId(savedState.activeTabId);
@@ -100,7 +110,6 @@ function App() {
 
   useEffect(() => {
     if (!isInitialized) return;
-    // PDF의 Blob URL은 저장하지 않음 (다시 열 때 생성)
     const stateToSave = {
         tabs: tabs.map(t => t.isPdf ? { ...t, content: '' } : t),
         activeTabId: activeTabId
@@ -124,8 +133,8 @@ function App() {
   };
 
   const handleFind = (query?: string) => {
-    if (activeTab?.isPdf) return; // PDF에서는 검색 기능 제한 (또는 브라우저 내장 검색 사용)
-    if (viewMode === 'editor') {
+    if (activeTab?.isPdf) return;
+    if (viewMode === 'editor' || isMobile) {
       editorRef.current?.focus();
       editorRef.current?.find(query);
     } else if (viewMode === 'preview') {
@@ -142,7 +151,8 @@ function App() {
 
   const handleNewFile = () => {
     const newId = Math.random().toString(36).substring(7);
-    const newTab: Tab = { id: newId, name: "Untitled.md", path: null, handle: null, content: "", isDirty: false };
+    const fileName = isMobile ? "Mobile-Draft.md" : "Untitled.md";
+    const newTab: Tab = { id: newId, name: fileName, path: null, handle: null, content: "", isDirty: false };
     setTabs(prev => [...prev, newTab]);
     setActiveTabId(newId);
   };
@@ -169,12 +179,8 @@ function App() {
               'text/x-rust': ['.rs'],
               'text/x-go': ['.go'],
               'text/x-yaml': ['.yaml', '.yml'],
-              'application/pdf': ['.pdf'] // PDF 추가
+              'application/pdf': ['.pdf']
             }
-          },
-          {
-            description: '모든 파일',
-            accept: { '*/*': [] }
           }
         ],
         multiple: false
@@ -183,13 +189,15 @@ function App() {
         handleFileOpen(handle);
       }
     } catch (err) {
-      if ((err as Error).name !== 'AbortError') {
-        console.error("File open failed:", err);
-      }
+      if ((err as Error).name !== 'AbortError') console.error("File open failed:", err);
     }
   };
 
   const handleFolderOpen = async () => {
+    if (isMobile) {
+        alert("모바일 브라우저에서는 폴더 열기를 지원하지 않습니다. 파일 열기를 이용해 주세요.");
+        return;
+    }
     try {
       const handle = await fileSystemService.openDirectory();
       if (handle) {
@@ -204,22 +212,12 @@ function App() {
 
   const handleFileOpen = async (handle: FileSystemFileHandle) => {
     const ext = handle.name.split('.').pop()?.toLowerCase() || '';
-    
-    // PDF 특별 처리
     if (ext === 'pdf') {
       try {
         const file = await handle.getFile();
         const url = URL.createObjectURL(file);
         const newId = Math.random().toString(36).substring(7);
-        const newTab: Tab = { 
-          id: newId, 
-          name: handle.name, 
-          path: handle.name, 
-          handle, 
-          content: url, 
-          isDirty: false, 
-          isPdf: true 
-        };
+        const newTab: Tab = { id: newId, name: handle.name, path: handle.name, handle, content: url, isDirty: false, isPdf: true };
         setTabs(prev => [...prev, newTab]);
         setActiveTabId(newId);
         return;
@@ -229,15 +227,7 @@ function App() {
       }
     }
 
-    const mediaExtensions = [
-        'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'ico', 'svg', 
-        'mp4', 'mov', 'avi', 'mkv', 'webm', 'flv',               
-        'mp3', 'wav', 'ogg', 'm4a', 'flac',                      
-        'zip', 'rar', '7z', 'tar', 'gz',                         
-        'exe', 'dll', 'so', 'dylib', 'bin',                      
-        'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'       
-    ];
-
+    const mediaExtensions = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'ico', 'svg', 'mp4', 'mov', 'avi', 'mkv', 'webm', 'flv', 'mp3', 'wav', 'ogg', 'm4a', 'flac', 'zip', 'rar', '7z', 'tar', 'gz', 'exe', 'dll', 'so', 'dylib', 'bin', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
     if (mediaExtensions.includes(ext)) {
       alert("문서 파일이 아닙니다.");
       return;
@@ -260,8 +250,26 @@ function App() {
     }
   };
 
+  const handleExport = async () => {
+    if (!activeTab || activeTab.isPdf) return;
+    try {
+      const blob = new Blob([activeTab.content], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = activeTab.name.endsWith('.md') ? activeTab.name : `${activeTab.name}.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, isDirty: false } : t));
+    } catch (err) {
+      console.error("Export failed:", err);
+    }
+  };
+
   const executeSave = async (tab: Tab) => {
-    if (!tab.handle || tab.isPdf) return false; // PDF는 저장 대상 제외
+    if (!tab.handle || tab.isPdf) return false;
     setIsSaving(true);
     try {
       await fileSystemService.writeFile(tab.handle, tab.content);
@@ -277,7 +285,11 @@ function App() {
 
   const handleSave = async (tabToSave?: Tab) => {
     const targetTab = tabToSave || activeTab;
-    if (!targetTab || targetTab.isPdf) return false; // PDF 저장 방지
+    if (!targetTab || targetTab.isPdf) return false;
+    if (isMobile) {
+        handleExport();
+        return true;
+    }
     try {
       let handle = targetTab.handle;
       if (!handle) {
@@ -298,6 +310,10 @@ function App() {
 
   const handleSaveAs = async () => {
     if (!activeTab || activeTab.isPdf) return;
+    if (isMobile) {
+        handleExport();
+        return;
+    }
     try {
       const handle = await window.showSaveFilePicker({
         suggestedName: activeTab.name,
@@ -315,61 +331,58 @@ function App() {
   const handleTabClose = async (id: string) => {
     const tabToClose = tabs.find(t => t.id === id);
     if (!tabToClose) return;
-
-    // PDF 탭 닫을 때 메모리 해제
-    if (tabToClose.isPdf && tabToClose.content) {
-        URL.revokeObjectURL(tabToClose.content);
+    if (tabToClose.isPdf && tabToClose.content) URL.revokeObjectURL(tabToClose.content);
+    if (tabToClose.isDirty && !tabToClose.handle && !isMobile) {
+      if (!confirm(`'${tabToClose.name}'의 변경 내용을 저장하지 않고 닫으시겠습니까?`)) return;
     }
-
-    if (tabToClose.isDirty && !tabToClose.handle) {
-      if (!confirm(`'${tabToClose.name}'의 변경 내용을 저장하지 않고 닫으시겠습니까?`)) {
-        return;
-      }
-    }
-
     setTabs(prev => {
       const newTabs = prev.filter(t => t.id !== id);
-      if (activeTabId === id) {
-        setActiveTabId(newTabs.length > 0 ? newTabs[newTabs.length - 1].id : null);
-      }
+      if (activeTabId === id) setActiveTabId(newTabs.length > 0 ? newTabs[newTabs.length - 1].id : null);
       return newTabs;
     });
   };
 
   const updateContent = useCallback((newContent: string) => {
-    if (!activeTabId || activeTab?.isPdf) return; // PDF는 내용 업데이트 제외
-
+    if (!activeTabId || activeTab?.isPdf) return;
     setTabs(prev => prev.map(t => {
       if (t.id === activeTabId) {
         const updated = { ...t, content: newContent, isDirty: true };
-        
-        if (updated.handle) {
+        if (updated.handle && !isMobile) {
             if (autoSaveTimerRef.current) window.clearTimeout(autoSaveTimerRef.current);
-            autoSaveTimerRef.current = window.setTimeout(() => {
-                executeSave(updated);
-            }, AUTO_SAVE_DELAY);
+            autoSaveTimerRef.current = window.setTimeout(() => executeSave(updated), AUTO_SAVE_DELAY);
         }
-        
         return updated;
       }
       return t;
     }));
-  }, [activeTabId, activeTab]);
+  }, [activeTabId, activeTab, isMobile]);
 
   const startResizing = useCallback(() => { isResizing.current = true; document.body.style.cursor = 'col-resize'; }, []);
   const stopResizing = useCallback(() => { isResizing.current = false; document.body.style.cursor = 'default'; }, []);
   const resize = useCallback((e: MouseEvent) => { if (isResizing.current) setSidebarWidth(Math.max(e.clientX, 200)); }, []);
-
   useEffect(() => {
     window.addEventListener('mousemove', resize);
     window.addEventListener('mouseup', stopResizing);
     return () => { window.removeEventListener('mousemove', resize); window.removeEventListener('mouseup', stopResizing); };
   }, [resize, stopResizing]);
 
-  const handleToggleSidebar = useCallback(() => {
-    if (sidebarWidth > 0) { setPrevWidth(sidebarWidth); setSidebarWidth(0); }
-    else { setSidebarWidth(prevWidth > 0 ? prevWidth : 200); }
-  }, [sidebarWidth, prevWidth]);
+  if (isMobile) {
+    return (
+      <MobileLayout 
+        activeTab={activeTab}
+        onContentChange={updateContent}
+        onNewFile={handleNewFile}
+        onOpenFile={handleOpenFile}
+        onExport={handleExport}
+        isPrettyPrint={isPrettyPrint}
+        onTogglePrettyPrint={() => setIsPrettyPrint(!isPrettyPrint)}
+        isDarkMode={isDarkMode}
+        editorRef={editorRef}
+        previewRef={previewRef}
+        onFind={handleFind}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen w-full bg-[var(--bg-app)] overflow-hidden text-[var(--text-main)] font-sans transition-colors duration-200">
@@ -387,65 +400,20 @@ function App() {
         onOpenTheme={() => setIsThemeModalOpen(true)}
         shortcuts={shortcuts}
       />
-      
       <div className="flex-1 flex overflow-hidden w-full relative">
-        <Sidebar 
-          rootHandle={rootHandle} 
-          rootName={rootName} 
-          onFileOpen={handleFileOpen} 
-          onFolderOpen={handleFolderOpen}
-          activeFileHandle={activeTab?.handle || null}
-          width={sidebarWidth}
-          onToggle={handleToggleSidebar}
-        />
-        
-        {sidebarWidth > 0 && (
-          <div className="w-[5px] h-full bg-[var(--border-base)] hover:bg-orange-400 active:bg-orange-600 cursor-col-resize shrink-0 transition-colors z-10" onMouseDown={startResizing} />
-        )}
-        
+        <Sidebar rootHandle={rootHandle} rootName={rootName} onFileOpen={handleFileOpen} onFolderOpen={handleFolderOpen} activeFileHandle={activeTab?.handle || null} width={sidebarWidth} onToggle={() => setSidebarWidth(0)} />
+        {sidebarWidth > 0 && ( <div className="w-[5px] h-full bg-[var(--border-base)] hover:bg-orange-400 active:bg-orange-600 cursor-col-resize shrink-0 transition-colors z-10" onMouseDown={startResizing} /> )}
         <div className="flex-1 flex flex-col overflow-hidden min-w-0 bg-[var(--bg-app)]">
-          <TabBar 
-            tabs={tabs} 
-            activeTabId={activeTabId} 
-            onTabSelect={setActiveTabId} 
-            onTabClose={handleTabClose}
-            viewMode={viewMode} 
-            setViewMode={setViewMode} 
-            isPrettyPrint={isPrettyPrint}
-            onTogglePrettyPrint={() => setIsPrettyPrint(!isPrettyPrint)}
-            isSidebarCollapsed={sidebarWidth === 0}
-            onToggleSidebar={handleToggleSidebar}
-          />
-          
+          <TabBar tabs={tabs} activeTabId={activeTabId} onTabSelect={setActiveTabId} onTabClose={handleTabClose} viewMode={viewMode} setViewMode={setViewMode} isPrettyPrint={isPrettyPrint} onTogglePrettyPrint={() => setIsPrettyPrint(!isPrettyPrint)} isSidebarCollapsed={sidebarWidth === 0} onToggleSidebar={() => setSidebarWidth(200)} />
           <main className="flex-1 overflow-hidden relative">
             {activeTab ? (
               activeTab.isPdf ? (
-                <div className="h-full w-full bg-[#525659]">
-                  <iframe 
-                    src={`${activeTab.content}#view=FitH`} 
-                    className="w-full h-full border-none"
-                    title={activeTab.name}
-                  />
-                </div>
+                <div className="h-full w-full bg-[#525659]"> <iframe src={`${activeTab.content}#view=FitH`} className="w-full h-full border-none" title={activeTab.name} /> </div>
               ) : (
                 <PanelGroup orientation="horizontal" key={`${activeTab.id}-${isDarkMode}-${viewMode}`}>
-                  {(viewMode === 'editor' || viewMode === 'split') && (
-                    <Panel defaultSize={viewMode === 'split' ? 50 : 100} minSize={0} className="h-full overflow-hidden">
-                      <div className="h-full w-full" onClick={() => setLastActivePanel('editor')}>
-                        <Editor key={`editor-${activeTab.id}-${isDarkMode}`} ref={editorRef} value={activeTab.content} onChange={updateContent} isDarkMode={isDarkMode} />
-                      </div>
-                    </Panel>
-                  )}
-                  {viewMode === 'split' && (
-                    <PanelResizeHandle className="w-[5px] bg-[var(--border-base)] hover:bg-orange-400 transition-colors cursor-col-resize shrink-0 z-10" />
-                  )}
-                  {(viewMode === 'preview' || viewMode === 'split') && (
-                    <Panel defaultSize={viewMode === 'split' ? 50 : 100} minSize={0} className="h-full overflow-hidden">
-                      <div className="h-full w-full" onClick={() => setLastActivePanel('preview')}>
-                        <Preview key={`preview-${activeTab.id}-${isPrettyPrint}`} ref={previewRef} content={activeTab.content} isPrettyPrint={isPrettyPrint} activeTabPath={activeTab.path} />
-                      </div>
-                    </Panel>
-                  )}
+                  {(viewMode === 'editor' || viewMode === 'split') && ( <Panel defaultSize={viewMode === 'split' ? 50 : 100} minSize={0} className="h-full overflow-hidden"> <div className="h-full w-full" onClick={() => setLastActivePanel('editor')}> <Editor key={`editor-${activeTab.id}-${isDarkMode}`} ref={editorRef} value={activeTab.content} onChange={updateContent} isDarkMode={isDarkMode} /> </div> </Panel> )}
+                  {viewMode === 'split' && ( <PanelResizeHandle className="w-[5px] bg-[var(--border-base)] hover:bg-orange-400 transition-colors cursor-col-resize shrink-0 z-10" /> )}
+                  {(viewMode === 'preview' || viewMode === 'split') && ( <Panel defaultSize={viewMode === 'split' ? 50 : 100} minSize={0} className="h-full overflow-hidden"> <div className="h-full w-full" onClick={() => setLastActivePanel('preview')}> <Preview key={`preview-${activeTab.id}-${isPrettyPrint}`} ref={previewRef} content={activeTab.content} isPrettyPrint={isPrettyPrint} activeTabPath={activeTab.path} /> </div> </Panel> )}
                 </PanelGroup>
               )
             ) : (
@@ -457,10 +425,8 @@ function App() {
           </main>
         </div>
       </div>
-      
       {isShortcutModalOpen && <ShortcutSettings shortcuts={shortcuts} defaultShortcuts={DEFAULT_SHORTCUTS} onSave={handleSaveShortcuts} onClose={() => setIsShortcutModalOpen(false)} />}
       {isThemeModalOpen && <ThemeSettings isDarkMode={isDarkMode} onToggleTheme={setIsDarkMode} onClose={() => setIsThemeModalOpen(false)} />}
-
       <footer className="px-4 h-6 text-[11px] text-[var(--text-muted)] bg-[var(--bg-sidebar)] border-t border-[var(--border-base)] flex items-center justify-between shrink-0 select-none">
         <div className="flex items-center space-x-4 overflow-hidden text-ellipsis whitespace-nowrap">
           <span className="truncate">{activeTab?.path || activeTab?.name || "Ready"}</span>
@@ -468,9 +434,7 @@ function App() {
           {isSaving && <span className="text-blue-400 animate-pulse ml-2">Saving...</span>}
           {activeTab?.isPdf && <span className="text-zinc-400 ml-2">[Read Only]</span>}
         </div>
-        <div className="flex items-center space-x-4 shrink-0 ml-4">
-          <span>LF</span><span>UTF-8</span><span>4 spaces</span><span className="text-[var(--text-muted)]">Markdown</span>
-        </div>
+        <div className="flex items-center space-x-4 shrink-0 ml-4"> <span>LF</span><span>UTF-8</span><span>4 spaces</span><span className="text-[var(--text-muted)]">Markdown</span> </div>
       </footer>
     </div>
   );
