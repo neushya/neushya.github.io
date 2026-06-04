@@ -4,7 +4,7 @@ import Editor from './Editor';
 import type { EditorHandle } from './Editor';
 import Preview from './Preview';
 import type { PreviewHandle } from './Preview';
-import { Search, FilePlus, FolderOpen, Download, Code, Eye, Sparkles } from 'lucide-react';
+import { Search, FilePlus, FolderOpen, Download, Code, Eye, Sparkles, Settings } from 'lucide-react';
 
 interface MobileLayoutProps {
   activeTab: Tab | undefined;
@@ -18,6 +18,7 @@ interface MobileLayoutProps {
   editorRef: React.RefObject<EditorHandle>;
   previewRef: React.RefObject<PreviewHandle>;
   onFind: (query?: string) => void;
+  onOpenTheme: () => void; // 설정 버튼 연동을 위해 추가
 }
 
 const MobileLayout: React.FC<MobileLayoutProps> = ({
@@ -31,7 +32,8 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
   isDarkMode,
   editorRef,
   previewRef,
-  onFind
+  onFind,
+  onOpenTheme
 }) => {
   const [activeView, setActiveView] = useState<'editor' | 'preview'>('editor');
 
@@ -40,23 +42,26 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
       {/* Mobile Top Bar */}
       <header className="flex items-center justify-between px-4 h-12 border-b border-[var(--border-base)] bg-[var(--bg-header)] shrink-0">
         <div className="flex items-center space-x-4">
-          <button onClick={onNewFile} className="p-1.5 text-[var(--text-muted)] active:text-[var(--accent)]">
+          <button onClick={onNewFile} className="p-1.5 text-[var(--text-muted)] active:text-[var(--accent)]" title="새 파일">
             <FilePlus size={20} />
           </button>
-          <button onClick={onOpenFile} className="p-1.5 text-[var(--text-muted)] active:text-[var(--accent)]">
+          <button onClick={onOpenFile} className="p-1.5 text-[var(--text-muted)] active:text-[var(--accent)]" title="파일 열기">
             <FolderOpen size={20} />
           </button>
         </div>
         
-        <span className="text-[13px] font-bold truncate max-w-[150px]">
+        <span className="text-[13px] font-bold truncate max-w-[120px]">
           {activeTab?.name || "Zenito MD"}
         </span>
 
-        <div className="flex items-center space-x-3">
-          <button onClick={() => onFind()} className="p-1.5 text-[var(--text-muted)]">
+        <div className="flex items-center space-x-2">
+          <button onClick={() => onFind()} className="p-1.5 text-[var(--text-muted)]" title="검색">
             <Search size={20} />
           </button>
-          <button onClick={onExport} className="p-1.5 text-[var(--accent)] active:scale-95 transition-transform">
+          <button onClick={onOpenTheme} className="p-1.5 text-[var(--text-muted)]" title="설정">
+            <Settings size={20} />
+          </button>
+          <button onClick={onExport} className="p-1.5 text-[var(--accent)] active:scale-95 transition-transform" title="내보내기">
             <Download size={20} />
           </button>
         </div>
@@ -65,24 +70,34 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
       {/* Main Content Area */}
       <main className="flex-1 relative overflow-hidden">
         {activeTab ? (
-          <div className="h-full w-full">
-            <div className={activeView === 'editor' ? 'h-full w-full block' : 'hidden'}>
-              <Editor 
-                ref={editorRef}
-                value={activeTab.content}
-                onChange={onContentChange}
-                isDarkMode={isDarkMode}
+          activeTab.isPdf ? (
+            <div className="h-full w-full bg-[#525659]">
+              <iframe 
+                src={`${activeTab.content}#view=FitH`} 
+                className="w-full h-full border-none"
+                title={activeTab.name}
               />
             </div>
-            <div className={activeView === 'preview' ? 'h-full w-full block' : 'hidden'}>
-              <Preview 
-                ref={previewRef}
-                content={activeTab.content}
-                isPrettyPrint={isPrettyPrint}
-                activeTabPath={activeTab.path}
-              />
+          ) : (
+            <div className="h-full w-full">
+              <div className={activeView === 'editor' ? 'h-full w-full block' : 'hidden'}>
+                <Editor 
+                  ref={editorRef}
+                  value={activeTab.content}
+                  onChange={onContentChange}
+                  isDarkMode={isDarkMode}
+                />
+              </div>
+              <div className={activeView === 'preview' ? 'h-full w-full block' : 'hidden'}>
+                <Preview 
+                  ref={previewRef}
+                  content={activeTab.content}
+                  isPrettyPrint={isPrettyPrint}
+                  activeTabPath={activeTab.path}
+                />
+              </div>
             </div>
-          </div>
+          )
         ) : (
           <div className="h-full flex flex-col items-center justify-center space-y-4 px-10 text-center">
             <div className="text-3xl opacity-20 font-bold uppercase italic tracking-tighter">Zenito Mobile</div>
@@ -98,35 +113,37 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
       </main>
 
       {/* Mobile Bottom Tab Bar */}
-      <footer className="h-14 border-t border-[var(--border-base)] bg-[var(--bg-sidebar)] flex items-center justify-around px-2 shrink-0">
-        <button 
-          onClick={() => setActiveView('editor')}
-          className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 transition-colors ${activeView === 'editor' ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}`}
-        >
-          <Code size={22} />
-          <span className="text-[10px] font-medium">Editor</span>
-        </button>
+      {!activeTab?.isPdf && (
+        <footer className="h-14 border-t border-[var(--border-base)] bg-[var(--bg-sidebar)] flex items-center justify-around px-2 shrink-0">
+          <button 
+            onClick={() => setActiveView('editor')}
+            className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 transition-colors ${activeView === 'editor' ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}`}
+          >
+            <Code size={22} />
+            <span className="text-[10px] font-medium">Editor</span>
+          </button>
 
-        <div className="w-px h-6 bg-[var(--border-base)] opacity-50" />
+          <div className="w-px h-6 bg-[var(--border-base)] opacity-50" />
 
-        <button 
-          onClick={onTogglePrettyPrint}
-          className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 transition-colors ${isPrettyPrint ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}`}
-        >
-          <Sparkles size={20} className={isPrettyPrint ? 'animate-pulse' : ''} />
-          <span className="text-[10px] font-medium">Pretty</span>
-        </button>
+          <button 
+            onClick={onTogglePrettyPrint}
+            className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 transition-colors ${isPrettyPrint ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}`}
+          >
+            <Sparkles size={20} className={isPrettyPrint ? 'animate-pulse' : ''} />
+            <span className="text-[10px] font-medium">Pretty</span>
+          </button>
 
-        <div className="w-px h-6 bg-[var(--border-base)] opacity-50" />
+          <div className="w-px h-6 bg-[var(--border-base)] opacity-50" />
 
-        <button 
-          onClick={() => setActiveView('preview')}
-          className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 transition-colors ${activeView === 'preview' ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}`}
-        >
-          <Eye size={22} />
-          <span className="text-[10px] font-medium">Preview</span>
-        </button>
-      </footer>
+          <button 
+            onClick={() => setActiveView('preview')}
+            className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 transition-colors ${activeView === 'preview' ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}`}
+          >
+            <Eye size={22} />
+            <span className="text-[10px] font-medium">Preview</span>
+          </button>
+        </footer>
+      )}
     </div>
   );
 };
