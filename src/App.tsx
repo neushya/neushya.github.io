@@ -37,13 +37,15 @@ const DEFAULT_SHORTCUTS: ShortcutItem[] = [
   { id: 'find', name: '찾기', windows: 'Ctrl+F', mac: 'command+F' }
 ];
 
+const APP_VERSION = "v0.1.3";
 const STORAGE_KEY = "md_editor_shortcuts";
 const WORKSPACE_KEY = "md_editor_workspace_handle";
 const TABS_STATE_KEY = "md_editor_tabs_state"; 
 const AUTO_SAVE_DELAY = 1000;
 
 function App() {
-  const [isMobile, setIsMobile] = useState(false);
+  // 모바일 여부를 렌더링 시점에 즉시 판단하여 지연 제거
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [rootHandle, setRootHandle] = useState<FileSystemDirectoryHandle | null>(null);
@@ -280,25 +282,26 @@ function App() {
     return () => { window.removeEventListener('mousemove', resize); window.removeEventListener('mouseup', stopResizing); };
   }, [resize, stopResizing]);
 
-  // Mobile layout returned cleanly with 2nd layer CSS lock (pc-layout-root)
+  // Mobile layout branch with explicit key to force re-render
   if (isMobile) {
     return (
-      <>
+      <div key={`mobile-root-${APP_VERSION}`} className="mobile-only-root">
         <MobileLayout 
           activeTab={activeTab} onContentChange={updateContent} onNewFile={handleNewFile} onOpenFile={handleOpenFile} onExport={handleExport}
           isPrettyPrint={isPrettyPrint} onTogglePrettyPrint={() => setIsPrettyPrint(!isPrettyPrint)} isDarkMode={isDarkMode}
           editorRef={editorRef} previewRef={previewRef} onFind={handleFind} onOpenTheme={() => setIsThemeModalOpen(true)}
           onPanelActive={(panel) => setLastActivePanel(panel)} onReset={handleReset} isSaving={isSaving}
+          version={APP_VERSION}
         />
         {isShortcutModalOpen && <ShortcutSettings shortcuts={shortcuts} defaultShortcuts={DEFAULT_SHORTCUTS} onSave={handleSaveShortcuts} onClose={() => setIsShortcutModalOpen(false)} />}
         {isThemeModalOpen && <ThemeSettings isDarkMode={isDarkMode} onToggleTheme={setIsDarkMode} onClose={() => setIsThemeModalOpen(false)} />}
-      </>
+      </div>
     );
   }
 
-  // Desktop layout wrapped in pc-layout-root for strict CSS isolation
+  // Desktop layout branch with explicit key and pc-layout-root class
   return (
-    <div className="pc-layout-root flex flex-col h-[100dvh] w-full bg-[var(--bg-app)] overflow-hidden text-[var(--text-main)] font-sans transition-colors duration-200">
+    <div key={`desktop-root-${APP_VERSION}`} className="pc-layout-root flex flex-col h-[100dvh] w-full bg-[var(--bg-app)] overflow-hidden text-[var(--text-main)] font-sans transition-colors duration-200">
       <GNB 
         onNewFile={handleNewFile} onOpenFile={handleOpenFile} onOpenFolder={handleFolderOpen} onSave={() => handleSave()} onSaveAs={handleSaveAs}
         onClose={() => window.close()} onUndo={() => editorRef.current?.undo()} onRedo={() => editorRef.current?.redo()} onFind={handleFind}
@@ -335,7 +338,10 @@ function App() {
               {isSaving && <span className="text-blue-400 animate-pulse ml-2">Saving...</span>}
               {activeTab?.isPdf && <span className="text-zinc-400 ml-2">[Read Only]</span>}
             </div>
-            <div className="flex items-center space-x-4 shrink-0 ml-4"> <span>LF</span><span>UTF-8</span><span>4 spaces</span><span className="text-[var(--text-muted)]">Markdown</span> </div>
+            <div className="flex items-center space-x-4 shrink-0 ml-4"> 
+              <span className="opacity-50 mr-2">{APP_VERSION}</span>
+              <span>LF</span><span>UTF-8</span><span>4 spaces</span><span className="text-[var(--text-muted)]">Markdown</span> 
+            </div>
           </footer>
         </div>
       </div>

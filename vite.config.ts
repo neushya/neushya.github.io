@@ -5,13 +5,17 @@ import { VitePWA } from "vite-plugin-pwa";
 
 // https://vite.dev/config/
 export default defineConfig({
-  // GitHub User Page (https://username.github.io/) 배포를 위해 루트 경로(/)로 설정
   base: "/", 
   plugins: [
     react(), 
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      workbox: {
+        cleanupOutdatedCaches: true,
+        skipWaiting: true,
+        clientsClaim: true,
+      },
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
         name: 'Zenito Markdown',

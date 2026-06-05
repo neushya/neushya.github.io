@@ -22,6 +22,7 @@ interface MobileLayoutProps {
   onPanelActive: (panel: 'editor' | 'preview') => void;
   onReset: () => void;
   isSaving: boolean;
+  version: string; // 버전 정보 추가
 }
 
 const MobileLayout: React.FC<MobileLayoutProps> = ({
@@ -39,7 +40,8 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
   onOpenTheme,
   onPanelActive,
   onReset,
-  isSaving
+  isSaving,
+  version
 }) => {
   const [activeView, setActiveView] = useState<'editor' | 'preview'>('editor');
 
@@ -141,8 +143,9 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
 
       {/* Mobile Bottom Info Bar */}
       <div className="px-4 h-5 text-[9px] text-[var(--text-muted)] bg-[var(--bg-sidebar)] border-t border-[var(--border-base)] flex items-center justify-between shrink-0 select-none">
-          <span className="truncate">{activeTab?.path || activeTab?.name || "Ready"}</span>
-          <div className="flex space-x-2">
+          <span className="truncate flex-1 mr-2">{activeTab?.path || activeTab?.name || "Ready"}</span>
+          <div className="flex space-x-2 shrink-0">
+            <span className="opacity-50">{version}</span>
             <span>UTF-8</span>
             {activeTab?.isPdf && <span>[READ ONLY]</span>}
           </div>
