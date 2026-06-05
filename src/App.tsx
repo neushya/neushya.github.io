@@ -287,7 +287,7 @@ function App() {
           activeTab={activeTab} onContentChange={updateContent} onNewFile={handleNewFile} onOpenFile={handleOpenFile} onExport={handleExport}
           isPrettyPrint={isPrettyPrint} onTogglePrettyPrint={() => setIsPrettyPrint(!isPrettyPrint)} isDarkMode={isDarkMode}
           editorRef={editorRef} previewRef={previewRef} onFind={handleFind} onOpenTheme={() => setIsThemeModalOpen(true)}
-          onPanelActive={(panel) => setLastActivePanel(panel)} onReset={handleReset}
+          onPanelActive={(panel) => setLastActivePanel(panel)} onReset={handleReset} isSaving={isSaving}
         />
       ) : (
         <>
@@ -308,9 +308,9 @@ function App() {
                     <div className="h-full w-full bg-[#525659]"> <iframe src={`${activeTab.content}#view=FitH`} className="w-full h-full border-none" title={activeTab.name} /> </div>
                   ) : (
                     <PanelGroup orientation="horizontal" key={`${activeTab.id}-${isDarkMode}-${viewMode}`}>
-                      {(viewMode === 'editor' || viewMode === 'split') && ( <Panel defaultSize={viewMode === 'split' ? 50 : 100} minSize={0} className="h-full overflow-hidden"> <div className="h-full w-full" onClick={() => setLastActivePanel('editor')}> <Editor key={`editor-${activeTab.id}-${isDarkMode}`} ref={editorRef} value={activeTab.content} onChange={updateContent} isDarkMode={isDarkMode} /> </div> </Panel> )}
+                      {(viewMode === 'editor' || viewMode === 'split') && ( <Panel defaultSize={viewMode === 'split' ? 50 : 100} minSize={0} className="h-full overflow-hidden"> <div className="h-full w-full" onClick={() => { setLastActivePanel('editor'); }}> <Editor key={`editor-${activeTab.id}-${isDarkMode}`} ref={editorRef} value={activeTab.content} onChange={updateContent} isDarkMode={isDarkMode} /> </div> </Panel> )}
                       {viewMode === 'split' && ( <PanelResizeHandle className="w-[5px] bg-[var(--border-base)] hover:bg-orange-400 transition-colors cursor-col-resize shrink-0 z-10" /> )}
-                      {(viewMode === 'preview' || viewMode === 'split') && ( <Panel defaultSize={viewMode === 'split' ? 50 : 100} minSize={0} className="h-full overflow-hidden"> <div className="h-full w-full" onClick={() => setLastActivePanel('preview')}> <Preview key={`preview-${activeTab.id}-${isPrettyPrint}`} ref={previewRef} content={activeTab.content} isPrettyPrint={isPrettyPrint} activeTabPath={activeTab.path} /> </div> </Panel> )}
+                      {(viewMode === 'preview' || viewMode === 'split') && ( <Panel defaultSize={viewMode === 'split' ? 50 : 100} minSize={0} className="h-full overflow-hidden"> <div className="h-full w-full" onClick={() => { setLastActivePanel('preview'); }}> <Preview key={`preview-${activeTab.id}-${isPrettyPrint}`} ref={previewRef} content={activeTab.content} isPrettyPrint={isPrettyPrint} activeTabPath={activeTab.path} /> </div> </Panel> )}
                     </PanelGroup>
                   )
                 ) : (
@@ -320,24 +320,23 @@ function App() {
                   </div>
                 )}
               </main>
+              <footer className="px-4 h-6 text-[11px] text-[var(--text-muted)] bg-[var(--bg-sidebar)] border-t border-[var(--border-base)] flex items-center justify-between shrink-0 select-none">
+                <div className="flex items-center space-x-4 overflow-hidden text-ellipsis whitespace-nowrap">
+                  <span className="truncate">{activeTab?.path || activeTab?.name || "Ready"}</span>
+                  {activeTab?.isDirty && <span className="text-orange-400 shrink-0">*Modified</span>}
+                  {isSaving && <span className="text-blue-400 animate-pulse ml-2">Saving...</span>}
+                  {activeTab?.isPdf && <span className="text-zinc-400 ml-2">[Read Only]</span>}
+                </div>
+                <div className="flex items-center space-x-4 shrink-0 ml-4"> <span>LF</span><span>UTF-8</span><span>4 spaces</span><span className="text-[var(--text-muted)]">Markdown</span> </div>
+              </footer>
             </div>
           </div>
         </>
       )}
 
-      {/* Global Modals */}
+      {/* Global Modals: Accessible from both Mobile and Desktop */}
       {isShortcutModalOpen && <ShortcutSettings shortcuts={shortcuts} defaultShortcuts={DEFAULT_SHORTCUTS} onSave={handleSaveShortcuts} onClose={() => setIsShortcutModalOpen(false)} />}
       {isThemeModalOpen && <ThemeSettings isDarkMode={isDarkMode} onToggleTheme={setIsDarkMode} onClose={() => setIsThemeModalOpen(false)} />}
-
-      <footer className="px-4 h-6 text-[11px] text-[var(--text-muted)] bg-[var(--bg-sidebar)] border-t border-[var(--border-base)] flex items-center justify-between shrink-0 select-none">
-        <div className="flex items-center space-x-4 overflow-hidden text-ellipsis whitespace-nowrap">
-          <span className="truncate">{activeTab?.path || activeTab?.name || "Ready"}</span>
-          {activeTab?.isDirty && <span className="text-orange-400 shrink-0">*Modified</span>}
-          {isSaving && <span className="text-blue-400 animate-pulse ml-2">Saving...</span>}
-          {activeTab?.isPdf && <span className="text-zinc-400 ml-2">[Read Only]</span>}
-        </div>
-        <div className="flex items-center space-x-4 shrink-0 ml-4"> <span>LF</span><span>UTF-8</span><span>4 spaces</span><span className="text-[var(--text-muted)]">Markdown</span> </div>
-      </footer>
     </div>
   );
 }

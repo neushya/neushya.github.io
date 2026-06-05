@@ -21,6 +21,7 @@ interface MobileLayoutProps {
   onOpenTheme: () => void;
   onPanelActive: (panel: 'editor' | 'preview') => void;
   onReset: () => void;
+  isSaving: boolean; // 저장 중 상태 추가
 }
 
 const MobileLayout: React.FC<MobileLayoutProps> = ({
@@ -37,7 +38,8 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
   onFind,
   onOpenTheme,
   onPanelActive,
-  onReset
+  onReset,
+  isSaving
 }) => {
   const [activeView, setActiveView] = useState<'editor' | 'preview'>('editor');
 
@@ -66,9 +68,12 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
           </button>
         </div>
         
-        <span className="text-[12px] font-bold truncate max-w-[100px] text-center flex-1 mx-2">
-          {activeTab?.name || "Zenito MD"}
-        </span>
+        <div className="flex flex-col items-center justify-center flex-1 mx-2 overflow-hidden">
+          <span className="text-[12px] font-bold truncate max-w-[100px]">
+            {activeTab?.name || "Zenito MD"}
+          </span>
+          {isSaving && <span className="text-[8px] text-blue-400 animate-pulse uppercase">Saving...</span>}
+        </div>
 
         <div className="flex items-center space-x-2">
           <button onClick={handleFindClick} className="p-1 text-[var(--text-muted)]" title="검색">
@@ -127,6 +132,15 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
           </div>
         )}
       </main>
+
+      {/* Mobile Bottom Info Bar (Simplified) */}
+      <div className="px-4 h-5 text-[9px] text-[var(--text-muted)] bg-[var(--bg-sidebar)] border-t border-[var(--border-base)] flex items-center justify-between shrink-0 select-none">
+          <span className="truncate">{activeTab?.path || activeTab?.name || "Ready"}</span>
+          <div className="flex space-x-2">
+            <span>UTF-8</span>
+            {activeTab?.isPdf && <span>[READ ONLY]</span>}
+          </div>
+      </div>
 
       {/* Mobile Bottom Tab Bar */}
       {!activeTab?.isPdf && (
