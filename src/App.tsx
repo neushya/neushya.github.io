@@ -43,7 +43,7 @@ const TABS_STATE_KEY = "md_editor_tabs_state";
 const AUTO_SAVE_DELAY = 1000;
 
 function App() {
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [isMobile, setIsMobile] = useState(false);
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [rootHandle, setRootHandle] = useState<FileSystemDirectoryHandle | null>(null);
@@ -75,9 +75,13 @@ function App() {
   const activeTab = tabs.find(t => t.id === activeTabId);
 
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    const checkMobile = () => {
+      const isMobileQuery = window.matchMedia("(max-width: 767px)").matches;
+      setIsMobile(isMobileQuery);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   useEffect(() => {
@@ -128,16 +132,13 @@ function App() {
       : "모든 탭과 작업 데이터를 초기화하시겠습니까? (설정값은 유지됩니다)";
 
     if (confirm(confirmMessage)) {
-      // 테마와 단축키 정보는 보존하기 위해 명시적으로 선택적 삭제 수행
       await del(WORKSPACE_KEY);
       await del(TABS_STATE_KEY);
-      // localStorage에서 설정값 제외하고 삭제
       const darkMode = localStorage.getItem("isDarkMode");
-      const shortcuts = localStorage.getItem(STORAGE_KEY);
+      const savedShortcuts = localStorage.getItem(STORAGE_KEY);
       localStorage.clear();
       if (darkMode) localStorage.setItem("isDarkMode", darkMode);
-      if (shortcuts) localStorage.setItem(STORAGE_KEY, shortcuts);
-      
+      if (savedShortcuts) localStorage.setItem(STORAGE_KEY, savedShortcuts);
       window.location.reload();
     }
   };
@@ -191,7 +192,7 @@ function App() {
     try {
       const content = await fileSystemService.readFile(handle);
       const newId = Math.random().toString(36).substring(7);
-      setTabs(prev => [...prev, { id: newId, name: handle.name, path: handle.name, handle, content, isDirty: false }]);
+      setTabs(prev => [...prev, { id: newId, name: handle.name, path: handle.name, handle, content: content, isDirty: false }]);
       setActiveTabId(newId);
     } catch (err) { alert(`'${handle.name}' 파일을 열 수 없습니다.\n\n사유: ${err}`); }
   };
@@ -307,9 +308,9 @@ function App() {
                     <div className="h-full w-full bg-[#525659]"> <iframe src={`${activeTab.content}#view=FitH`} className="w-full h-full border-none" title={activeTab.name} /> </div>
                   ) : (
                     <PanelGroup orientation="horizontal" key={`${activeTab.id}-${isDarkMode}-${viewMode}`}>
-                      {(viewMode === 'editor' || viewMode === 'split') && ( <Panel defaultSize={viewMode === 'split' ? 50 : 100} minSize={0} className="h-full overflow-hidden"> <div className="h-full w-full" onClick={() => { setLastActivePanel('editor'); setLastActivePanel('editor'); }}> <Editor key={`editor-${activeTab.id}-${isDarkMode}`} ref={editorRef} value={activeTab.content} onChange={updateContent} isDarkMode={isDarkMode} /> </div> </Panel> )}
+                      {(viewMode === 'editor' || viewMode === 'split') && ( <Panel defaultSize={viewMode === 'split' ? 50 : 100} minSize={0} className="h-full overflow-hidden"> <div className="h-full w-full" onClick={() => setLastActivePanel('editor')}> <Editor key={`editor-${activeTab.id}-${isDarkMode}`} ref={editorRef} value={activeTab.content} onChange={updateContent} isDarkMode={isDarkMode} /> </div> </Panel> )}
                       {viewMode === 'split' && ( <PanelResizeHandle className="w-[5px] bg-[var(--border-base)] hover:bg-orange-400 transition-colors cursor-col-resize shrink-0 z-10" /> )}
-                      {(viewMode === 'preview' || viewMode === 'split') && ( <Panel defaultSize={viewMode === 'split' ? 50 : 100} minSize={0} className="h-full overflow-hidden"> <div className="h-full w-full" onClick={() => { setLastActivePanel('preview'); setLastActivePanel('preview'); }}> <Preview key={`preview-${activeTab.id}-${isPrettyPrint}`} ref={previewRef} content={activeTab.content} isPrettyPrint={isPrettyPrint} activeTabPath={activeTab.path} /> </div> </Panel> )}
+                      {(viewMode === 'preview' || viewMode === 'split') && ( <Panel defaultSize={viewMode === 'split' ? 50 : 100} minSize={0} className="h-full overflow-hidden"> <div className="h-full w-full" onClick={() => setLastActivePanel('preview')}> <Preview key={`preview-${activeTab.id}-${isPrettyPrint}`} ref={previewRef} content={activeTab.content} isPrettyPrint={isPrettyPrint} activeTabPath={activeTab.path} /> </div> </Panel> )}
                     </PanelGroup>
                   )
                 ) : (
@@ -324,7 +325,7 @@ function App() {
         </>
       )}
 
-      {/* Global Modals: Accessible from both Mobile and Desktop */}
+      {/* Global Modals */}
       {isShortcutModalOpen && <ShortcutSettings shortcuts={shortcuts} defaultShortcuts={DEFAULT_SHORTCUTS} onSave={handleSaveShortcuts} onClose={() => setIsShortcutModalOpen(false)} />}
       {isThemeModalOpen && <ThemeSettings isDarkMode={isDarkMode} onToggleTheme={setIsDarkMode} onClose={() => setIsThemeModalOpen(false)} />}
 
