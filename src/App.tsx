@@ -13,7 +13,7 @@ import ThemeSettings from "./components/ThemeSettings";
 import MobileLayout from "./components/MobileLayout";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 import { fileSystemService } from "./services/FileSystemService";
-import { get, set, clear } from "idb-keyval";
+import { get, set, del } from "idb-keyval";
 
 export interface Tab {
   id: string;
@@ -122,9 +122,22 @@ function App() {
   };
 
   const handleReset = async () => {
-    if (confirm("모든 설정과 탭을 초기화하시겠습니까? (로컬 파일은 삭제되지 않습니다)")) {
-      await clear();
+    const hasDirty = tabs.some(t => t.isDirty);
+    const confirmMessage = hasDirty 
+      ? "주의! 저장되지 않은 작업 내용이 있습니다. 초기화 진행 시 모든 내용이 삭제됩니다. 정말 진행하시겠습니까?"
+      : "모든 탭과 작업 데이터를 초기화하시겠습니까? (설정값은 유지됩니다)";
+
+    if (confirm(confirmMessage)) {
+      // 테마와 단축키 정보는 보존하기 위해 명시적으로 선택적 삭제 수행
+      await del(WORKSPACE_KEY);
+      await del(TABS_STATE_KEY);
+      // localStorage에서 설정값 제외하고 삭제
+      const darkMode = localStorage.getItem("isDarkMode");
+      const shortcuts = localStorage.getItem(STORAGE_KEY);
       localStorage.clear();
+      if (darkMode) localStorage.setItem("isDarkMode", darkMode);
+      if (shortcuts) localStorage.setItem(STORAGE_KEY, shortcuts);
+      
       window.location.reload();
     }
   };
@@ -281,6 +294,7 @@ function App() {
             onNewFile={handleNewFile} onOpenFile={handleOpenFile} onOpenFolder={handleFolderOpen} onSave={() => handleSave()} onSaveAs={handleSaveAs}
             onClose={() => window.close()} onUndo={() => editorRef.current?.undo()} onRedo={() => editorRef.current?.redo()} onFind={handleFind}
             onOpenShortcuts={() => setIsShortcutModalOpen(true)} onOpenTheme={() => setIsThemeModalOpen(true)} shortcuts={shortcuts}
+            onReset={handleReset}
           />
           <div className="flex-1 flex overflow-hidden w-full relative">
             <Sidebar rootHandle={rootHandle} rootName={rootName} onFileOpen={handleFileOpen} onFolderOpen={handleFolderOpen} activeFileHandle={activeTab?.handle || null} width={sidebarWidth} onToggle={() => setSidebarWidth(0)} />
@@ -293,9 +307,9 @@ function App() {
                     <div className="h-full w-full bg-[#525659]"> <iframe src={`${activeTab.content}#view=FitH`} className="w-full h-full border-none" title={activeTab.name} /> </div>
                   ) : (
                     <PanelGroup orientation="horizontal" key={`${activeTab.id}-${isDarkMode}-${viewMode}`}>
-                      {(viewMode === 'editor' || viewMode === 'split') && ( <Panel defaultSize={viewMode === 'split' ? 50 : 100} minSize={0} className="h-full overflow-hidden"> <div className="h-full w-full" onClick={() => setLastActivePanel('editor')}> <Editor key={`editor-${activeTab.id}-${isDarkMode}`} ref={editorRef} value={activeTab.content} onChange={updateContent} isDarkMode={isDarkMode} /> </div> </Panel> )}
+                      {(viewMode === 'editor' || viewMode === 'split') && ( <Panel defaultSize={viewMode === 'split' ? 50 : 100} minSize={0} className="h-full overflow-hidden"> <div className="h-full w-full" onClick={() => { setLastActivePanel('editor'); setLastActivePanel('editor'); }}> <Editor key={`editor-${activeTab.id}-${isDarkMode}`} ref={editorRef} value={activeTab.content} onChange={updateContent} isDarkMode={isDarkMode} /> </div> </Panel> )}
                       {viewMode === 'split' && ( <PanelResizeHandle className="w-[5px] bg-[var(--border-base)] hover:bg-orange-400 transition-colors cursor-col-resize shrink-0 z-10" /> )}
-                      {(viewMode === 'preview' || viewMode === 'split') && ( <Panel defaultSize={viewMode === 'split' ? 50 : 100} minSize={0} className="h-full overflow-hidden"> <div className="h-full w-full" onClick={() => setLastActivePanel('preview')}> <Preview key={`preview-${activeTab.id}-${isPrettyPrint}`} ref={previewRef} content={activeTab.content} isPrettyPrint={isPrettyPrint} activeTabPath={activeTab.path} /> </div> </Panel> )}
+                      {(viewMode === 'preview' || viewMode === 'split') && ( <Panel defaultSize={viewMode === 'split' ? 50 : 100} minSize={0} className="h-full overflow-hidden"> <div className="h-full w-full" onClick={() => { setLastActivePanel('preview'); setLastActivePanel('preview'); }}> <Preview key={`preview-${activeTab.id}-${isPrettyPrint}`} ref={previewRef} content={activeTab.content} isPrettyPrint={isPrettyPrint} activeTabPath={activeTab.path} /> </div> </Panel> )}
                     </PanelGroup>
                   )
                 ) : (

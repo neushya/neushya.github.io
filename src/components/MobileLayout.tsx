@@ -4,7 +4,7 @@ import Editor from './Editor';
 import type { EditorHandle } from './Editor';
 import Preview from './Preview';
 import type { PreviewHandle } from './Preview';
-import { Search, FilePlus, FolderOpen, Download, Code, Eye, Sparkles, Settings, RotateCcw } from 'lucide-react';
+import { Search, FilePlus, FolderOpen, Save, Code, Eye, Sparkles, Settings, RotateCcw } from 'lucide-react';
 
 interface MobileLayoutProps {
   activeTab: Tab | undefined;
@@ -20,7 +20,7 @@ interface MobileLayoutProps {
   onFind: (query?: string, forceSource?: 'editor' | 'preview') => void;
   onOpenTheme: () => void;
   onPanelActive: (panel: 'editor' | 'preview') => void;
-  onReset: () => void; // 화면 초기화 버튼 연동
+  onReset: () => void;
 }
 
 const MobileLayout: React.FC<MobileLayoutProps> = ({
@@ -77,8 +77,8 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
           <button onClick={onOpenTheme} className="p-1 text-[var(--text-muted)]" title="설정">
             <Settings size={18} />
           </button>
-          <button onClick={onExport} className="p-1 text-[var(--accent)] active:scale-95 transition-transform" title="내보내기">
-            <Download size={18} />
+          <button onClick={onExport} className="p-1 text-[var(--accent)] active:scale-95 transition-transform" title="저장">
+            <Save size={18} />
           </button>
         </div>
       </header>

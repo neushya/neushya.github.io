@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, Search, FolderOpen, FilePlus, Save, FileType, LogOut, Undo2, Redo2 } from 'lucide-react';
+import { Menu, Search, FolderOpen, FilePlus, Save, FileType, LogOut, Undo2, Redo2, RotateCcw } from 'lucide-react';
 import type { ShortcutItem } from './ShortcutSettings';
 
 interface GNBProps {
@@ -15,6 +15,7 @@ interface GNBProps {
   onOpenShortcuts: () => void;
   onOpenTheme: () => void;
   shortcuts: ShortcutItem[];
+  onReset: () => void; // 초기화 버튼 연동 추가
 }
 
 interface MenuItem {
@@ -27,7 +28,7 @@ interface MenuItem {
 
 const GNB: React.FC<GNBProps> = ({ 
   onNewFile, onOpenFile, onOpenFolder, onSave, onSaveAs, onClose, 
-  onUndo, onRedo, onFind, onOpenShortcuts, onOpenTheme, shortcuts
+  onUndo, onRedo, onFind, onOpenShortcuts, onOpenTheme, shortcuts, onReset
 }) => {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [searchValue, setSearchValue] = useState('');
@@ -74,6 +75,8 @@ const GNB: React.FC<GNBProps> = ({
       items: [
         { label: '배경화면', action: onOpenTheme },
         { label: '단축키 설정', action: onOpenShortcuts },
+        { divider: true },
+        { label: '화면 초기화', icon: <RotateCcw size={14} />, action: onReset },
       ] as MenuItem[]
     }
   ];
