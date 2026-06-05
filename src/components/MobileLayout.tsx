@@ -21,7 +21,7 @@ interface MobileLayoutProps {
   onOpenTheme: () => void;
   onPanelActive: (panel: 'editor' | 'preview') => void;
   onReset: () => void;
-  isSaving: boolean; // 저장 중 상태 추가
+  isSaving: boolean;
 }
 
 const MobileLayout: React.FC<MobileLayoutProps> = ({
@@ -53,7 +53,7 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-screen w-full bg-[var(--bg-app)] text-[var(--text-main)] overflow-hidden font-sans">
+    <div className="flex flex-col h-[100dvh] w-full bg-[var(--bg-app)] text-[var(--text-main)] overflow-hidden font-sans pt-[env(safe-area-inset-top)]">
       {/* Mobile Top Bar */}
       <header className="flex items-center justify-between px-4 h-12 border-b border-[var(--border-base)] bg-[var(--bg-header)] shrink-0">
         <div className="flex items-center space-x-3">
@@ -133,7 +133,7 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
         )}
       </main>
 
-      {/* Mobile Bottom Info Bar (Simplified) */}
+      {/* Mobile Bottom Info Bar */}
       <div className="px-4 h-5 text-[9px] text-[var(--text-muted)] bg-[var(--bg-sidebar)] border-t border-[var(--border-base)] flex items-center justify-between shrink-0 select-none">
           <span className="truncate">{activeTab?.path || activeTab?.name || "Ready"}</span>
           <div className="flex space-x-2">
@@ -142,36 +142,38 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
           </div>
       </div>
 
-      {/* Mobile Bottom Tab Bar */}
+      {/* Mobile Bottom Tab Bar with Safe Area Handling */}
       {!activeTab?.isPdf && (
-        <footer className="h-14 border-t border-[var(--border-base)] bg-[var(--bg-sidebar)] flex items-center justify-around px-2 shrink-0">
-          <button 
-            onClick={() => handleViewChange('editor')}
-            className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 transition-colors ${activeView === 'editor' ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}`}
-          >
-            <Code size={22} />
-            <span className="text-[10px] font-medium">Editor</span>
-          </button>
+        <footer className="bg-[var(--bg-sidebar)] border-t border-[var(--border-base)] shrink-0 pb-[env(safe-area-inset-bottom)]">
+          <div className="h-14 flex items-center justify-around px-2">
+            <button 
+              onClick={() => handleViewChange('editor')}
+              className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 transition-colors ${activeView === 'editor' ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}`}
+            >
+              <Code size={22} />
+              <span className="text-[10px] font-medium">Editor</span>
+            </button>
 
-          <div className="w-px h-6 bg-[var(--border-base)] opacity-50" />
+            <div className="w-px h-6 bg-[var(--border-base)] opacity-50" />
 
-          <button 
-            onClick={onTogglePrettyPrint}
-            className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 transition-colors ${isPrettyPrint ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}`}
-          >
-            <Sparkles size={20} className={isPrettyPrint ? 'animate-pulse' : ''} />
-            <span className="text-[10px] font-medium">Pretty</span>
-          </button>
+            <button 
+              onClick={onTogglePrettyPrint}
+              className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 transition-colors ${isPrettyPrint ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}`}
+            >
+              <Sparkles size={20} className={isPrettyPrint ? 'animate-pulse' : ''} />
+              <span className="text-[10px] font-medium">Pretty</span>
+            </button>
 
-          <div className="w-px h-6 bg-[var(--border-base)] opacity-50" />
+            <div className="w-px h-6 bg-[var(--border-base)] opacity-50" />
 
-          <button 
-            onClick={() => handleViewChange('preview')}
-            className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 transition-colors ${activeView === 'preview' ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}`}
-          >
-            <Eye size={22} />
-            <span className="text-[10px] font-medium">Preview</span>
-          </button>
+            <button 
+              onClick={() => handleViewChange('preview')}
+              className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 transition-colors ${activeView === 'preview' ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}`}
+            >
+              <Eye size={22} />
+              <span className="text-[10px] font-medium">Preview</span>
+            </button>
+          </div>
         </footer>
       )}
     </div>

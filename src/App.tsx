@@ -281,7 +281,7 @@ function App() {
   }, [resize, stopResizing]);
 
   return (
-    <div className="flex flex-col h-screen w-full bg-[var(--bg-app)] overflow-hidden text-[var(--text-main)] font-sans transition-colors duration-200">
+    <div className="flex flex-col h-[100dvh] w-full bg-[var(--bg-app)] overflow-hidden text-[var(--text-main)] font-sans transition-colors duration-200">
       {isMobile ? (
         <MobileLayout 
           activeTab={activeTab} onContentChange={updateContent} onNewFile={handleNewFile} onOpenFile={handleOpenFile} onExport={handleExport}
