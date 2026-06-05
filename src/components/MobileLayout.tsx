@@ -4,7 +4,7 @@ import Editor from './Editor';
 import type { EditorHandle } from './Editor';
 import Preview from './Preview';
 import type { PreviewHandle } from './Preview';
-import { Search, FilePlus, FolderOpen, Save, Code, Eye, Sparkles, Settings, RotateCcw } from 'lucide-react';
+import { Search, FilePlus, FolderOpen, Save, Code, Eye, Sparkles, Settings, RotateCcw, FileText } from 'lucide-react';
 
 interface MobileLayoutProps {
   activeTab: Tab | undefined;
@@ -92,12 +92,18 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
       <main className="flex-1 relative overflow-hidden">
         {activeTab ? (
           activeTab.isPdf ? (
-            <div className="h-full w-full bg-[#525659]">
-              <iframe 
-                src={`${activeTab.content}#view=FitH`} 
-                className="w-full h-full border-none"
-                title={activeTab.name}
-              />
+            <div className="h-full flex flex-col items-center justify-center p-10 text-center bg-[var(--bg-app)]">
+              <FileText size={48} className="text-[var(--text-muted)] mb-4" />
+              <p className="text-[14px] font-bold mb-6 truncate w-full">{activeTab.name}</p>
+              <button 
+                onClick={() => window.open(activeTab.content, '_blank')}
+                className="px-8 py-3 bg-blue-500 text-white rounded-full font-bold shadow-xl active:bg-blue-600 transition-transform active:scale-95"
+              >
+                PDF 뷰어로 열기
+              </button>
+              <p className="mt-6 text-[11px] text-[var(--text-muted)] leading-relaxed">
+                모바일 브라우저의 보안 정책으로 인해<br/>네이티브 전용 뷰어에서 안전하게 열람됩니다.
+              </p>
             </div>
           ) : (
             <div className="h-full w-full">

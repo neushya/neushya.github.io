@@ -280,7 +280,7 @@ function App() {
     return () => { window.removeEventListener('mousemove', resize); window.removeEventListener('mouseup', stopResizing); };
   }, [resize, stopResizing]);
 
-  // Mobile layout returned cleanly to prevent duplication
+  // Mobile layout returned cleanly with 2nd layer CSS lock (pc-layout-root)
   if (isMobile) {
     return (
       <>
@@ -296,9 +296,9 @@ function App() {
     );
   }
 
-  // Desktop layout with its own structure
+  // Desktop layout wrapped in pc-layout-root for strict CSS isolation
   return (
-    <div className="flex flex-col h-[100dvh] w-full bg-[var(--bg-app)] overflow-hidden text-[var(--text-main)] font-sans transition-colors duration-200">
+    <div className="pc-layout-root flex flex-col h-[100dvh] w-full bg-[var(--bg-app)] overflow-hidden text-[var(--text-main)] font-sans transition-colors duration-200">
       <GNB 
         onNewFile={handleNewFile} onOpenFile={handleOpenFile} onOpenFolder={handleFolderOpen} onSave={() => handleSave()} onSaveAs={handleSaveAs}
         onClose={() => window.close()} onUndo={() => editorRef.current?.undo()} onRedo={() => editorRef.current?.redo()} onFind={handleFind}

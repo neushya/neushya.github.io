@@ -74,3 +74,10 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* 2-layer Layout Lock: Hide PC parts strictly on mobile */
+@media (max-width: 767px) {
+  .pc-layout-root {
+    display: none !important;
+  }
+}
