@@ -4,7 +4,18 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>md-editor-web</title>
+    <title>Zenito Markdown</title>
+    <script>
+      // 캐시 파괴 패치 (v0.1.4): 앱 로드 시 모든 서비스 워커 강제 해제
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          for(let registration of registrations) {
+            registration.unregister();
+            console.log('ServiceWorker Unregistered (Cache Buster)');
+          }
+        });
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

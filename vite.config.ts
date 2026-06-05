@@ -10,6 +10,8 @@ export default defineConfig({
     react(), 
     tailwindcss(),
     VitePWA({
+      // 강력한 캐시 파괴를 위해 기존 서비스 워커를 자폭(Self-destroy)시킴
+      selfDestroying: true,
       registerType: 'autoUpdate',
       workbox: {
         cleanupOutdatedCaches: true,

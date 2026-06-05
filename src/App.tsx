@@ -37,14 +37,13 @@ const DEFAULT_SHORTCUTS: ShortcutItem[] = [
   { id: 'find', name: '찾기', windows: 'Ctrl+F', mac: 'command+F' }
 ];
 
-const APP_VERSION = "v0.1.3";
+const APP_VERSION = "v0.1.4"; // 버전 업데이트
 const STORAGE_KEY = "md_editor_shortcuts";
 const WORKSPACE_KEY = "md_editor_workspace_handle";
 const TABS_STATE_KEY = "md_editor_tabs_state"; 
 const AUTO_SAVE_DELAY = 1000;
 
 function App() {
-  // 모바일 여부를 렌더링 시점에 즉시 판단하여 지연 제거
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
@@ -282,10 +281,10 @@ function App() {
     return () => { window.removeEventListener('mousemove', resize); window.removeEventListener('mouseup', stopResizing); };
   }, [resize, stopResizing]);
 
-  // Mobile layout branch with explicit key to force re-render
+  // Mobile layout branch with explicit key to force re-render and complete PC isolation
   if (isMobile) {
     return (
-      <div key={`mobile-root-${APP_VERSION}`} className="mobile-only-root">
+      <div key={`mobile-root-${APP_VERSION}`} className="mobile-only-root h-[100dvh] w-full overflow-hidden">
         <MobileLayout 
           activeTab={activeTab} onContentChange={updateContent} onNewFile={handleNewFile} onOpenFile={handleOpenFile} onExport={handleExport}
           isPrettyPrint={isPrettyPrint} onTogglePrettyPrint={() => setIsPrettyPrint(!isPrettyPrint)} isDarkMode={isDarkMode}
@@ -299,7 +298,7 @@ function App() {
     );
   }
 
-  // Desktop layout branch with explicit key and pc-layout-root class
+  // Desktop layout branch with pc-layout-root class and APP_VERSION key
   return (
     <div key={`desktop-root-${APP_VERSION}`} className="pc-layout-root flex flex-col h-[100dvh] w-full bg-[var(--bg-app)] overflow-hidden text-[var(--text-main)] font-sans transition-colors duration-200">
       <GNB 
