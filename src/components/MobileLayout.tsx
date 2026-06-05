@@ -4,7 +4,7 @@ import Editor from './Editor';
 import type { EditorHandle } from './Editor';
 import Preview from './Preview';
 import type { PreviewHandle } from './Preview';
-import { Search, FilePlus, FolderOpen, Download, Code, Eye, Sparkles, Settings } from 'lucide-react';
+import { Search, FilePlus, FolderOpen, Download, Code, Eye, Sparkles, Settings, RotateCcw } from 'lucide-react';
 
 interface MobileLayoutProps {
   activeTab: Tab | undefined;
@@ -15,11 +15,12 @@ interface MobileLayoutProps {
   isPrettyPrint: boolean;
   onTogglePrettyPrint: () => void;
   isDarkMode: boolean;
-  editorRef: React.RefObject<EditorHandle | null>; // null 허용으로 수정
-  previewRef: React.RefObject<PreviewHandle | null>; // null 허용으로 수정
+  editorRef: React.RefObject<EditorHandle | null>;
+  previewRef: React.RefObject<PreviewHandle | null>;
   onFind: (query?: string, forceSource?: 'editor' | 'preview') => void;
   onOpenTheme: () => void;
   onPanelActive: (panel: 'editor' | 'preview') => void;
+  onReset: () => void; // 화면 초기화 버튼 연동
 }
 
 const MobileLayout: React.FC<MobileLayoutProps> = ({
@@ -35,7 +36,8 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
   previewRef,
   onFind,
   onOpenTheme,
-  onPanelActive
+  onPanelActive,
+  onReset
 }) => {
   const [activeView, setActiveView] = useState<'editor' | 'preview'>('editor');
 
@@ -50,33 +52,38 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
 
   return (
     <div className="flex flex-col h-screen w-full bg-[var(--bg-app)] text-[var(--text-main)] overflow-hidden font-sans">
+      {/* Mobile Top Bar */}
       <header className="flex items-center justify-between px-4 h-12 border-b border-[var(--border-base)] bg-[var(--bg-header)] shrink-0">
-        <div className="flex items-center space-x-4">
-          <button onClick={onNewFile} className="p-1.5 text-[var(--text-muted)] active:text-[var(--accent)]" title="새 파일">
-            <FilePlus size={20} />
+        <div className="flex items-center space-x-3">
+          <button onClick={onNewFile} className="p-1 text-[var(--text-muted)] active:text-[var(--accent)]" title="새 파일">
+            <FilePlus size={18} />
           </button>
-          <button onClick={onOpenFile} className="p-1.5 text-[var(--text-muted)] active:text-[var(--accent)]" title="파일 열기">
-            <FolderOpen size={20} />
+          <button onClick={onOpenFile} className="p-1 text-[var(--text-muted)] active:text-[var(--accent)]" title="파일 열기">
+            <FolderOpen size={18} />
+          </button>
+          <button onClick={onReset} className="p-1 text-[var(--text-muted)] active:text-red-500" title="화면 초기화">
+            <RotateCcw size={18} />
           </button>
         </div>
         
-        <span className="text-[13px] font-bold truncate max-w-[120px]">
+        <span className="text-[12px] font-bold truncate max-w-[100px] text-center flex-1 mx-2">
           {activeTab?.name || "Zenito MD"}
         </span>
 
         <div className="flex items-center space-x-2">
-          <button onClick={handleFindClick} className="p-1.5 text-[var(--text-muted)]" title="검색">
-            <Search size={20} />
+          <button onClick={handleFindClick} className="p-1 text-[var(--text-muted)]" title="검색">
+            <Search size={18} />
           </button>
-          <button onClick={onOpenTheme} className="p-1.5 text-[var(--text-muted)]" title="설정">
-            <Settings size={20} />
+          <button onClick={onOpenTheme} className="p-1 text-[var(--text-muted)]" title="설정">
+            <Settings size={18} />
           </button>
-          <button onClick={onExport} className="p-1.5 text-[var(--accent)] active:scale-95 transition-transform" title="내보내기">
-            <Download size={20} />
+          <button onClick={onExport} className="p-1 text-[var(--accent)] active:scale-95 transition-transform" title="내보내기">
+            <Download size={18} />
           </button>
         </div>
       </header>
 
+      {/* Main Content Area */}
       <main className="flex-1 relative overflow-hidden">
         {activeTab ? (
           activeTab.isPdf ? (
@@ -121,6 +128,7 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
         )}
       </main>
 
+      {/* Mobile Bottom Tab Bar */}
       {!activeTab?.isPdf && (
         <footer className="h-14 border-t border-[var(--border-base)] bg-[var(--bg-sidebar)] flex items-center justify-around px-2 shrink-0">
           <button 
