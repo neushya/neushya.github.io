@@ -46,8 +46,12 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ value, onChange, isDarkM
   useEffect(() => {
     if (!editorRef.current) return;
 
+    const baseLayoutTheme = EditorView.theme({
+      "&": { height: "100%" },
+    });
+
     const lightTheme = EditorView.theme({
-      "&": { height: "100%", backgroundColor: "#ffffff", color: "#1f2937" },
+      "&": { backgroundColor: "#ffffff", color: "#1f2937" },
       ".cm-content": { fontFamily: "'JetBrains Mono', monospace", fontSize: "13px" },
       ".cm-gutters": { backgroundColor: "#f3f4f6", color: "#6b7280", borderRight: "1px solid #d1d5db" },
       ".cm-activeLine": { backgroundColor: "#f3f4f6" },
@@ -63,6 +67,7 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ value, onChange, isDarkM
         basicSetup,
         history(),
         markdown(),
+        baseLayoutTheme,
         themeExtension,
         // Removed internal scrollbar theme to use unified global index.css settings
         EditorView.updateListener.of((update) => {
