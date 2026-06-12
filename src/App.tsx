@@ -187,7 +187,15 @@ function App() {
     const mediaExtensions = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'ico', 'svg', 'mp4', 'mov', 'avi', 'mkv', 'webm', 'flv', 'mp3', 'wav', 'ogg', 'm4a', 'flac', 'zip', 'rar', '7z', 'tar', 'gz', 'exe', 'dll', 'so', 'dylib', 'bin', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
     if (mediaExtensions.includes(ext)) { alert("문서 파일이 아닙니다."); return; }
 
-    const existingTab = tabs.find(t => t.handle?.name === handle.name && !t.isPdf);
+    // 중복 탭 판정: 이름만으로는 다른 폴더 동명 파일을 구분 못 하므로,
+    // 이름이 같은 후보에 한해 handle.isSameEntry로 동일 파일인지 정밀 확인
+    let existingTab = null;
+    for (const t of tabs) {
+      if (t.isPdf || !t.handle || t.handle.name !== handle.name) continue;
+      try {
+        if (await t.handle.isSameEntry(handle)) { existingTab = t; break; }
+      } catch { /* isSameEntry 실패 시 중복 아님으로 간주 */ }
+    }
     if (existingTab) { setActiveTabId(existingTab.id); return; }
 
     try {

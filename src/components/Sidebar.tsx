@@ -156,7 +156,22 @@ const FileTreeItem: React.FC<FileTreeItemProps> = ({ entry, onFileOpen, depth, a
   const [isOpen, setIsOpen] = useState(false);
   const [subEntries, setSubEntries] = useState<WebFileEntry[]>([]);
 
-  const isActive = activeFileHandle?.name === entry.name; // Simplified comparison
+  const [isActive, setIsActive] = useState(false);
+
+  // active 판정: 이름이 다르면 즉시 false(동기), 이름이 충돌할 때만
+  // FileSystemHandle.isSameEntry로 핸들 동일성 정밀 비교(다른 폴더 동명 파일 구분)
+  useEffect(() => {
+    let cancelled = false;
+    if (!activeFileHandle || entry.kind !== 'file' || entry.name !== activeFileHandle.name) {
+      setIsActive(false);
+      return;
+    }
+    (activeFileHandle as FileSystemHandle)
+      .isSameEntry(entry.handle as FileSystemHandle)
+      .then(same => { if (!cancelled) setIsActive(same); })
+      .catch(() => { if (!cancelled) setIsActive(false); });
+    return () => { cancelled = true; };
+  }, [activeFileHandle, entry.handle, entry.kind, entry.name]);
 
   const handleClick = async (e: React.MouseEvent) => {
     e.preventDefault();
