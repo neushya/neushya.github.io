@@ -85,9 +85,13 @@ const Preview = forwardRef<PreviewHandle, PreviewProps>(({ content, isPrettyPrin
     scrollToMatch(prevIndex);
   };
 
+  const ext = activeTabPath?.split('.').pop()?.toLowerCase() || '';
+  const isHtmlFile = ext === 'html' || ext === 'htm';
+
   const getFormattedContent = () => {
+    // HTML 파일은 prettyprint OFF일 때 소스 코드로 표시
+    if (isHtmlFile && !isPrettyPrint) return `\`\`\`html\n${content}\n\`\`\``;
     if (!isPrettyPrint) return content;
-    const ext = activeTabPath?.split('.').pop()?.toLowerCase() || '';
     const trimmed = content.trim();
     if (ext === 'json' || (trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
       try {
@@ -163,6 +167,15 @@ const Preview = forwardRef<PreviewHandle, PreviewProps>(({ content, isPrettyPrin
         </div>
       )}
 
+      {isHtmlFile && isPrettyPrint ? (
+        // HTML 렌더링: 앱과 다른 origin으로 격리(allow-same-origin 미부여)하여 파일 핸들·저장소 접근 차단
+        <iframe
+          title="HTML Preview"
+          srcDoc={content}
+          sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox allow-modals allow-forms"
+          className="h-full w-full border-0 bg-white"
+        />
+      ) : (
       <div ref={scrollContainerRef} className="h-full w-full overflow-auto p-4 md:p-8 text-left custom-scrollbar">
         <style>{`
           .prose { 
@@ -219,6 +232,7 @@ const Preview = forwardRef<PreviewHandle, PreviewProps>(({ content, isPrettyPrin
           </ReactMarkdown>
         </div>
       </div>
+      )}
     </div>
   );
 });
